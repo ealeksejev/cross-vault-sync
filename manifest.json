@@ -4,6 +4,6 @@
 	"version": "0.1.0",
 	"minAppVersion": "1.13.4",
 	"description": "Keep notes synchronized across multiple Obsidian vaults using the sync_targets frontmatter property.",
-	"author": "Community",
+	"author": "Einar Aleksejev",
 	"isDesktopOnly": true
 }

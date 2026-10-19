@@ -249,6 +249,9 @@ describe('sync decisions', () => {
 		await expect(io().stat(C_BASE)).rejects.toMatchObject({ code: 'ENOENT' });
 		expect(readHeader(io().content(B_FULL)!)?.known).toEqual([A_ENTRY, B_ENTRY]);
 		expect(ctx.count(/Folder does not exist/)).toBe(0);
+		// The folder of a vault absent on this computer is expected: an automatic sync logs a debug message only
+		expect(ctx.logged(/Target folder does not exist/, 'debug')).toBe(true);
+		expect(ctx.logged(/Target folder does not exist/)).toBe(false);
 		await pA.engine.syncFile(fA, true);
 		expect(ctx.count(/Folder does not exist/)).toBe(2);
 		io().addDir(win.dirname(C_FULL));

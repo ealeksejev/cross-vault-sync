@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { A_ENTRY, B_BASE, B_ENTRY, B_FULL, C_BASE, C_ENTRY, note, synced, twoVaults, useWorld } from './helpers/world';
 
 describe('target folder watchers', () => {
@@ -53,7 +53,9 @@ describe('target folder watchers', () => {
 		const { pA, fA } = await twoVaults(ctx.world, { list: [A_ENTRY, B_ENTRY, C_ENTRY] });
 		pA.settings.autoSync = true;
 		pA.watchers.update(fA, true);
-		expect(ctx.logged(/Could not watch folder/)).toBe(true);
+		// A missing folder is expected, and only a debug message
+		expect(ctx.logged(/Folder to watch does not exist/, 'debug')).toBe(true);
+		expect(ctx.logged(/Folder to watch does not exist/)).toBe(false);
 		const watcher = io().openWatchers()[0]!;
 		watcher.emitError(new Error('EPERM'));
 		expect(watcher.closed).toBe(true);
@@ -67,6 +69,17 @@ describe('target folder watchers', () => {
 		expect(pA.watchers.watchers.size).toBe(1);
 		fresh.throwOnClose = true;
 		pA.watchers.close();
+		expect(pA.watchers.watchers.size).toBe(0);
+	});
+
+	it('a folder that exists but cannot be watched is an error', async () => {
+		const { pA, fA } = await twoVaults(ctx.world);
+		pA.settings.autoSync = true;
+		vi.spyOn(io(), 'watch').mockImplementationOnce(() => {
+			throw Object.assign(new Error('too many open files'), { code: 'EMFILE' });
+		});
+		pA.watchers.update(fA, true);
+		expect(ctx.logged(/Could not watch folder/)).toBe(true);
 		expect(pA.watchers.watchers.size).toBe(0);
 	});
 
