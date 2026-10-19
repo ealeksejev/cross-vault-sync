@@ -1,0 +1,4 @@
+/* Path field in the "Add sync target" dialog: full width, so long paths stay readable */
+.cross-vault-sync-path-input {
+    width: 100%;
+}

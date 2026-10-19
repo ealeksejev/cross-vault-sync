@@ -1,0 +1,60 @@
+# Unit tests with coverage, then end-to-end tests in real Obsidian.
+# Based on the workflow of wdio-obsidian-service-sample-plugin, desktop part only (the plugin is desktop-only).
+name: Test
+on:
+    push:
+        branches: ['**']
+    pull_request:
+        branches: ['**']
+    workflow_dispatch:
+
+permissions: {}
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                shell: bash
+        steps:
+            - uses: actions/checkout@v6
+
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: 24.x
+                  cache: 'npm'
+
+            - run: npm ci
+            - run: npm run build
+
+            - name: Run unit tests
+              run: npm run test:unit
+
+            # wdio.conf.mts prints the resolved Obsidian versions, which key the Obsidian download cache
+            - name: Get Obsidian cache key
+              run: |
+                  npx tsx wdio.conf.mts | grep 'obsidian-cache-key:' > obsidian-versions-lock.txt
+                  rm -rf .obsidian-cache
+
+            - name: Cache Obsidian
+              uses: actions/cache@v4
+              with:
+                  path: .obsidian-cache
+                  key: obsidian-cache-${{ hashFiles('obsidian-versions-lock.txt') }}
+
+            # Obsidian needs a display: Xvfb as the display server and herbstluftwm as the window manager
+            - name: Set up virtual graphics
+              run: |
+                  sudo apt-get update -q
+                  sudo apt-get install -q herbstluftwm dzen2 x11-xserver-utils
+                  export DISPLAY=:99
+                  echo "DISPLAY=$DISPLAY" >> "$GITHUB_ENV"
+                  Xvfb $DISPLAY -screen 0 1280x1024x24 +extension GLX -noreset &
+                  sleep 1
+                  herbstluftwm &
+                  sleep 1
+
+            - name: Run e2e tests
+              run: npx wdio run ./wdio.conf.mts
+              env:
+                  WDIO_MAX_INSTANCES: 2
