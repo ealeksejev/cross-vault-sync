@@ -1,0 +1,11 @@
+{
+	"extends": "../tsconfig.json",
+	"compilerOptions": {
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"noEmit": true,
+		"lib": ["ES2022", "DOM"],
+		"types": ["node", "@wdio/globals/types", "wdio-obsidian-service"]
+	},
+	"include": ["**/*.ts", "../src/**/*.ts"]
+}
