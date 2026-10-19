@@ -2,7 +2,7 @@ import { createHash } from 'crypto';
 import * as nodePath from 'path';
 import type { App as AppOriginal, TFile as TFileOriginal } from 'obsidian';
 import { App, FileSystemAdapter, Notice, TFile } from 'obsidian-test-mocks/obsidian';
-import { afterEach, beforeEach, vi } from 'vitest';
+import { afterEach, beforeEach, expect, vi } from 'vitest';
 import { readHeader, withoutHeader, writeHeader } from '../../../src/header';
 import CrossVaultSyncPlugin from '../../../src/main';
 import { PathRules, type PlatformName } from '../../../src/paths';
@@ -163,22 +163,27 @@ export class World {
 	}
 }
 
+const CONSOLE_LEVELS = ['error', 'warn', 'info', 'log', 'debug'] as const;
+type ConsoleLevel = (typeof CONSOLE_LEVELS)[number];
+
 export interface TestContext {
 	world: World;
 	notices: string[];
-	logs: unknown[][];
+	logs: { level: ConsoleLevel; args: unknown[] }[];
 	count(re: RegExp): number;
-	logged(re: RegExp): boolean;
+	logged(re: RegExp, level?: 'error' | 'debug'): boolean;
 }
 
-// A fresh world per test, with notices and console errors collected instead of printed
+// A fresh world per test, with notices and console messages collected instead of printed. Obsidian's plugin
+// guidelines allow only errors in the developer console as it is by default, so any other message that the
+// default console shows fails the test. Debug messages are hidden by default.
 export function useWorld(platform: PlatformName = 'win32'): TestContext {
 	const ctx: TestContext = {
 		world: new World(platform),
 		notices: [],
 		logs: [],
 		count: (re) => ctx.notices.filter((n) => re.test(n)).length,
-		logged: (re) => ctx.logs.some((entry) => entry.some((part) => re.test(String(part)))),
+		logged: (re, level = 'error') => ctx.logs.some((entry) => entry.level === level && entry.args.some((part) => re.test(String(part)))),
 	};
 	beforeEach(() => {
 		// The vault folder table of the computer the test runs on
@@ -189,15 +194,17 @@ export function useWorld(platform: PlatformName = 'win32'): TestContext {
 		vi.spyOn(Notice.prototype, 'constructor__').mockImplementation((message) => {
 			ctx.notices.push(typeof message === 'string' ? message : (message.textContent ?? ''));
 		});
-		for (const level of ['error', 'warn'] as const) {
+		for (const level of CONSOLE_LEVELS) {
 			vi.spyOn(console, level).mockImplementation((...args: unknown[]) => {
-				ctx.logs.push(args);
+				ctx.logs.push({ level, args });
 			});
 		}
 	});
 	afterEach(async () => {
 		await ctx.world.teardown();
 		vi.restoreAllMocks();
+		const shown = ctx.logs.filter((entry) => entry.level !== 'error' && entry.level !== 'debug');
+		expect(shown, 'console messages shown by default that are not errors').toEqual([]);
 	});
 	return ctx;
 }

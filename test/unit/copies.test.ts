@@ -16,6 +16,12 @@ describe('which copies are in this vault', () => {
 		expect(writer.vaultPath('D:\\topic.md')).toBeNull();
 	});
 
+	it('in the form of Obsidian\'s own paths, whatever form the entry was written in', () => {
+		const writer = writerIn('C:\\Vaults\\Vault A', 'win32');
+		// "õ" as "o" and a combining tilde, and a no-break space
+		expect(writer.vaultPath('C:\\Vaults\\Vault A\\Pro\u00a0jects\\to\u0303pic.md')).toBe('Pro jects/t\u00f5pic.md');
+	});
+
 	it('a vault at the root of a drive or file system', () => {
 		expect(writerIn('C:\\', 'win32').vaultPath('C:\\Notes\\topic.md')).toBe('Notes/topic.md');
 		expect(writerIn('/', 'linux').vaultPath('/home/u/topic.md')).toBe('home/u/topic.md');

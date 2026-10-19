@@ -1,4 +1,4 @@
-import { TFile } from 'obsidian';
+import { TFile, normalizePath } from 'obsidian';
 import type { SyncHost } from './host';
 import { readCopy, statOrNull, unchangedSince, writeWithRetry, type ExistingCopy, type MissingCopy } from './io';
 import { writeLocal } from './local-write';
@@ -10,7 +10,8 @@ import { writeLocal } from './local-write';
 export class CopyFiles {
 	constructor(private readonly host: SyncHost) {}
 
-	// The path of a file in this vault, relative to the vault folder, or null for a file elsewhere
+	// The path of a file in this vault, relative to the vault folder, or null for a file elsewhere. normalizePath
+	// gives it the form of Obsidian's own paths, since the path comes from an entry the user wrote.
 	vaultPath(fullPath: string): string | null {
 		const { paths } = this.host;
 		const base = this.host.vaultBasePath();
@@ -18,7 +19,7 @@ export class CopyFiles {
 		const baseKey = paths.key(base);
 		const prefix = baseKey.endsWith(paths.path.sep) ? baseKey : baseKey + paths.path.sep;
 		if (!paths.key(fullPath).startsWith(prefix)) return null;
-		return paths.path.relative(base, fullPath).split(paths.path.sep).join('/');
+		return normalizePath(paths.path.relative(base, fullPath));
 	}
 
 	// The note in this vault at that path, when Obsidian knows it

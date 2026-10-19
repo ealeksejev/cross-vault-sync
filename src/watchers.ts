@@ -1,6 +1,6 @@
 import type { TFile } from 'obsidian';
 import type { SyncHost } from './host';
-import type { FileWatcher } from './io';
+import { errorCode, type FileWatcher } from './io';
 import type { SyncEngine } from './sync';
 
 // Watches the folders of the active note's targets and schedules a sync when a target changes
@@ -55,7 +55,7 @@ export class TargetWatchers {
 				});
 				// Without a listener, an 'error' (folder deleted, drive gone) is thrown as an uncaught exception
 				watcher.on('error', (err) => {
-					console.warn('Cross-Vault Sync: Stopped watching folder', dir, err);
+					console.error('Cross-Vault Sync: Stopped watching folder', dir, err);
 					try {
 						watcher.close();
 					} catch {
@@ -65,7 +65,9 @@ export class TargetWatchers {
 				});
 				this.watchers.set(dirKey, watcher);
 			} catch (err) {
-				console.warn('Cross-Vault Sync: Could not watch folder', dir, err);
+				// A folder of a vault that is absent on this computer is expected to be missing
+				if (errorCode(err) === 'ENOENT') console.debug('Cross-Vault Sync: Folder to watch does not exist', dir);
+				else console.error('Cross-Vault Sync: Could not watch folder', dir, err);
 			}
 		}
 	}

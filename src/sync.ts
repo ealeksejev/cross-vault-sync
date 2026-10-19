@@ -290,16 +290,17 @@ export class SyncEngine {
 		const dir = host.paths.path.dirname(copy.fullPath);
 		const dirStat = await statOrNull(host.io, dir);
 		if (!dirStat || !dirStat.isDirectory()) {
-			// Never mkdir -p: the folder may belong to a vault or OneDrive account that is absent on this machine
+			// Never mkdir -p: the folder may belong to a vault or OneDrive account that is absent on this machine.
+			// That is expected, so an automatic sync logs it as a debug message only.
 			if (manual) new Notice(`Cross-Vault Sync: Folder does not exist: ${dir}`);
-			else console.warn('Cross-Vault Sync: Target folder does not exist', dir);
+			else console.debug('Cross-Vault Sync: Target folder does not exist', dir);
 			return false;
 		}
 		const asFolder = copy.fullPath.replace(/\.md$/, '');
 		if (!folderTargets.has(copy.key) && (await statOrNull(host.io, asFolder))?.isDirectory()) {
 			const message = `Cross-Vault Sync: ${asFolder} is a folder. End its ${host.settings.frontmatterKey} entry with / to sync into it.`;
 			if (manual) new Notice(message);
-			else console.warn(message);
+			else console.error(message);
 			return false;
 		}
 		return true;
