@@ -29,6 +29,7 @@ describe('add sync target dialog', () => {
 		expect(modal.contentEl.querySelector('p')?.textContent).toMatch(/"topic"/);
 		expect(input.value).toBe('');
 		expect(input.hasClass('cross-vault-sync-path-input')).toBe(true);
+		expect(input.closest('.setting-item')?.hasClass('cross-vault-sync-path-setting')).toBe(true);
 		expect(input.getAttribute('style')).toBeNull();
 		const [cancel, add] = Array.from(modal.contentEl.querySelectorAll('button'));
 		expect(add?.textContent).toBe('Add and sync');

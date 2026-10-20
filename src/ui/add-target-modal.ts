@@ -22,16 +22,17 @@ export class AddSyncTargetModal extends Modal {
 		this.titleEl.setText('Add sync target');
 		contentEl.createEl('p', { text: `Link "${this.activeFile.basename}" to a note or folder in another vault.` });
 
+		// The field gets a line of its own in the whole width of the dialog (styles.css)
 		new Setting(contentEl)
 			.setName('Target')
 			.setDesc('A vault name and a path, such as vault/folder/note, or vault/folder/ for a copy with the same name. Copy sync target in the menu of a note or folder copies it.')
+			.setClass('cross-vault-sync-path-setting')
 			.addText((text) => {
 				text.setPlaceholder('Vault/folder/')
 					.setValue(this.target)
 					.onChange((value) => {
 						this.target = value;
 					});
-				// Width comes from styles.css
 				text.inputEl.addClass('cross-vault-sync-path-input');
 			});
 

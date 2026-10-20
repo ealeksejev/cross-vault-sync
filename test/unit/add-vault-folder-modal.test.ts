@@ -20,6 +20,8 @@ describe('add vault folder dialog', () => {
 		const [name, folder] = texts.mock.results.map((result) => (result.value as TextComponent).inputEl);
 		expect(modal.titleEl.textContent).toBe('Add folder');
 		expect(folder!.hasClass('cross-vault-sync-path-input')).toBe(true);
+		expect(folder!.closest('.setting-item')?.hasClass('cross-vault-sync-path-setting')).toBe(true);
+		expect(name!.closest('.setting-item')?.hasClass('cross-vault-sync-path-setting')).toBe(false);
 		const [cancel, add] = Array.from(modal.contentEl.querySelectorAll('button'));
 		expect(add?.textContent).toBe('Add');
 
