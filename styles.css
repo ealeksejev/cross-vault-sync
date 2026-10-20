@@ -1,4 +1,14 @@
-/* Path field in the "Add sync target" dialog: full width, so long paths stay readable */
+/* Path fields in the "Add sync target" and "Add folder" dialogs. Obsidian puts a setting's name and description
+   and its field in one row, and the long description leaves the field narrow. The field gets a line of its own
+   in the whole width, so long paths stay readable. */
+.cross-vault-sync-path-setting {
+    flex-wrap: wrap;
+}
+
+.cross-vault-sync-path-setting .setting-item-control {
+    flex-basis: 100%;
+}
+
 .cross-vault-sync-path-input {
     width: 100%;
 }

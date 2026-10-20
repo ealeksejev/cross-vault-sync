@@ -25,9 +25,11 @@ export class AddVaultFolderModal extends Modal {
 					this.vaultName = value;
 				});
 			});
+		// The field gets a line of its own in the whole width of the dialog (styles.css)
 		new Setting(contentEl)
 			.setName('Folder')
 			.setDesc('The absolute path of the folder on this computer.')
+			.setClass('cross-vault-sync-path-setting')
 			.addText((text) => {
 				text.setPlaceholder('Absolute folder path')
 					.setValue(this.folder)

@@ -111,4 +111,52 @@ describe('sync_targets entries in Obsidian', function () {
 		expect(await browser.$(`${dialog}//input[@type="text"]`).getValue()).toBe('Other/Notes/');
 		await browser.keys('Escape');
 	});
+
+	it('the path field of both dialogs takes the whole width of its row', async function () {
+		// The previous test closes its dialog with Escape
+		await browser.$(dialogTitled('Add sync target')).waitForExist({ reverse: true });
+		await createAndOpen('Width.md', 'width\n');
+		await browser.executeObsidianCommand('cross-vault-sync:add-sync-target');
+		await browser.$(`${dialogTitled('Add sync target')}//input[@type="text"]`).waitForExist();
+		const target = await pathFieldWidth('Add sync target');
+		// Closed and gone before the settings open: a late Escape would close the settings instead
+		await browser.$(`${dialogTitled('Add sync target')}//button[text()="Cancel"]`).click();
+		await browser.$(dialogTitled('Add sync target')).waitForExist({ reverse: true });
+
+		await openPluginSettings();
+		let folder = { field: 0, row: 0 };
+		await inSettings(async () => {
+			await browser.$('[aria-label="Add folder"]').click();
+			await browser.$(`${dialogTitled('Add folder')}//input[@type="text"]`).waitForExist();
+			folder = await pathFieldWidth('Add folder');
+			await browser.$(`${dialogTitled('Add folder')}//button[text()="Cancel"]`).click();
+			await browser.$(dialogTitled('Add folder')).waitForExist({ reverse: true });
+		});
+		await browser.executeObsidian(({ app }) => (app as unknown as AppWithSettings).setting.close());
+
+		expect(target.row).toBeGreaterThan(0);
+		expect(Math.abs(target.field - target.row)).toBeLessThanOrEqual(1);
+		expect(folder.row).toBeGreaterThan(0);
+		expect(Math.abs(folder.field - folder.row)).toBeLessThanOrEqual(1);
+	});
 });
+
+// The settings window is a modal too, so a dialog is found by its title
+function dialogTitled(title: string): string {
+	return `//div[contains(@class,"modal")][.//div[@class="modal-title" and text()="${title}"]]`;
+}
+
+// The width of a dialog's path field and of the content of its setting row, in CSS pixels
+async function pathFieldWidth(title: string): Promise<{ field: number; row: number }> {
+	return browser.execute((dialogTitle) => {
+		const heading = Array.from(document.querySelectorAll('.modal .modal-title')).find((el) => el.textContent === dialogTitle);
+		const input = heading?.closest('.modal')?.querySelector<HTMLInputElement>('input.cross-vault-sync-path-input');
+		const row = input?.closest<HTMLElement>('.setting-item');
+		if (!input || !row) return { field: -1, row: -1 };
+		const style = getComputedStyle(row);
+		return {
+			field: input.getBoundingClientRect().width,
+			row: row.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+		};
+	}, title);
+}
