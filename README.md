@@ -90,7 +90,7 @@ The same vault can be in a different folder on each computer, for example under 
 
 ## Files outside the vault
 
-The plugin reads and writes the files listed in `sync_targets`, also outside the vault, and writes conflict backups next to them. While a note is open, it watches the folders of that note's targets for changes. It needs this to keep the copies in other vaults identical. It does not use the network. Its own data in the vault holds the settings only.
+The plugin reads and writes the files listed in `sync_targets`, also outside the vault, and writes conflict backups next to them. It watches the folders of the active note's targets for changes: the note you are working in. A note in another tab or split is not watched. Its copies are checked when you switch to it. It needs this to keep the copies in other vaults identical. It does not use the network. Its own data in the vault holds the settings only.
 
 ## Installation
 

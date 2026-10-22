@@ -42,6 +42,8 @@ export class ErrorReporter {
 	constructor(private readonly host: SyncHost) {}
 
 	report(target: string, err: unknown, manual: boolean): void {
+		// A sync cut short by turning the plugin off is no error
+		if (this.host.isUnloaded()) return;
 		console.error(`Cross-Vault Sync: Error syncing with ${target}`, err);
 		if (!manual && !this.host.settings.showNotices) return;
 		const now = Date.now();

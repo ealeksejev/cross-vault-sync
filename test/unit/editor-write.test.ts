@@ -30,6 +30,21 @@ describe('writing into the note open in the active editor', () => {
 		expect(to!.line).toBeLessThan(at.line);
 	});
 
+	it('replaces only the changed parts also when the other copy has \\r\\n line breaks', async () => {
+		const { appA, pA, fA } = await synced(ctx.world);
+		const { view } = await openInEditor(appA, fA);
+		const before = view.editor.getValue();
+		const replace = vi.spyOn(view.editor, 'replaceRange');
+		// An editor on Windows saved the other copy with \r\n line breaks. Obsidian's editor uses \n.
+		editOnDisk(io(), B_FULL, note('v1 plus an added line').replace(/\n/g, '\r\n'));
+		await pA.engine.syncFile(fA);
+		const at = view.editor.offsetToPos(before.lastIndexOf('v1') + 2);
+		expect(replace).toHaveBeenCalledWith(' plus an added line', at, at);
+		expect(replace).toHaveBeenCalledTimes(2);
+		expect(view.editor.getValue()).not.toContain('\r');
+		expect(bodyOf(await read(appA, fA))).toBe(note('v1 plus an added line'));
+	});
+
 	it('replaces text appended or removed at the end as the difference only', async () => {
 		const { appA, pA, fA } = await synced(ctx.world);
 		const { view } = await openInEditor(appA, fA);
