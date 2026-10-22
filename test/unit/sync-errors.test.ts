@@ -37,6 +37,24 @@ describe('sync I/O errors', () => {
 		expect(bodyOf(io().content(B_FULL))).toBe(note('v1'));
 	});
 
+	it('a write waiting to retry when the plugin is turned off is not retried, and is not reported', async () => {
+		const { appA, pA, fA } = await synced(ctx.world);
+		await change(appA, fA, note('A edit'));
+		let attempts = 0;
+		io().hooks.beforeWrite = (p) => {
+			if (!isB(p)) return;
+			attempts++;
+			// Obsidian turns the plugin off while the write waits for its first retry
+			pA.onunload();
+			throw errno('EBUSY', p);
+		};
+		await pA.engine.syncFile(fA);
+		expect(attempts).toBe(1);
+		expect(bodyOf(io().content(B_FULL))).toBe(note('v1'));
+		expect(ctx.count(/EBUSY/)).toBe(0);
+		expect(ctx.logged(/Error syncing/)).toBe(false);
+	});
+
 	it('a permanent write error leaves the copy one version behind, and the next sync brings it up to date', async () => {
 		const { appA, pA, fA } = await synced(ctx.world);
 		await change(appA, fA, note('A edit'));

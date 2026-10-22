@@ -10,6 +10,9 @@ import { writeLocal } from './local-write';
 export class CopyFiles {
 	constructor(private readonly host: SyncHost) {}
 
+	// A write that waits to retry gives up when the plugin is turned off
+	private readonly unloaded = (): boolean => this.host.isUnloaded();
+
 	// The path of a file in this vault, relative to the vault folder, or null for a file elsewhere. normalizePath
 	// gives it the form of Obsidian's own paths, since the path comes from an entry the user wrote.
 	vaultPath(fullPath: string): string | null {
@@ -40,7 +43,7 @@ export class CopyFiles {
 	// Creates the file. Fails with the code EEXIST when something is at that path already.
 	async create(fullPath: string, content: string): Promise<void> {
 		const rel = this.vaultPath(fullPath);
-		if (rel === null) return writeWithRetry(this.host.io, fullPath, content, 'wx');
+		if (rel === null) return writeWithRetry(this.host.io, fullPath, content, 'wx', undefined, this.unloaded);
 		try {
 			await this.host.app.vault.create(rel, content);
 		} catch (err) {
@@ -56,7 +59,7 @@ export class CopyFiles {
 		const file = this.vaultFile(copy.fullPath);
 		if (file) return writeLocal(this.host, file, copy.hash, content, mtime);
 		if (!(await unchangedSince(this.host.io, copy))) return false;
-		await writeWithRetry(this.host.io, copy.fullPath, content, 'w', mtime);
+		await writeWithRetry(this.host.io, copy.fullPath, content, 'w', mtime, this.unloaded);
 		return true;
 	}
 }

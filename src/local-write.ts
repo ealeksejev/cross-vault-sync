@@ -55,8 +55,9 @@ export async function writeLocal(host: SyncHost, file: TFile, expectedHash: stri
 		const current = editor.getValue();
 		// Changed on disk, or typed into the editor, since it was read
 		if (host.hash(disk) !== expectedHash || !sameText(current, disk)) return false;
-		// Replace only the parts that differ, the last first so the offsets of the earlier one stay valid
-		for (const change of changes(current, content).reverse()) {
+		// Replace only the parts that differ, the last first so the offsets of the earlier one stay valid. The
+		// editor's text has \n line breaks, so content with \r\n would differ at every line break.
+		for (const change of changes(current, content.replace(/\r\n/g, '\n')).reverse()) {
 			editor.replaceRange(change.text, editor.offsetToPos(change.from), editor.offsetToPos(change.to));
 		}
 		await view.save();

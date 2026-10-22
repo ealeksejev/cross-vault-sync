@@ -84,13 +84,15 @@ export async function unchangedSince(io: FileIo, copy: ExistingCopy): Promise<bo
 	return stat !== null && stat.mtimeMs === copy.mtime && stat.size === copy.size;
 }
 
-export async function writeWithRetry(io: FileIo, fullPath: string, content: string, flag: 'w' | 'wx', mtimeMs?: number, attempt = 0): Promise<void> {
+// stopped tells when to give up waiting, such as when the plugin was turned off: the last error is thrown then
+export async function writeWithRetry(io: FileIo, fullPath: string, content: string, flag: 'w' | 'wx', mtimeMs: number | undefined, stopped: () => boolean, attempt = 0): Promise<void> {
 	try {
 		await io.writeFile(fullPath, content, flag, mtimeMs);
 	} catch (err) {
 		const code = errorCode(err);
 		if (code === undefined || !RETRYABLE_CODES.has(code) || attempt >= WRITE_RETRIES) throw err;
 		await sleep(100 * 2 ** attempt);
-		await writeWithRetry(io, fullPath, content, flag, mtimeMs, attempt + 1);
+		if (stopped()) throw err;
+		await writeWithRetry(io, fullPath, content, flag, mtimeMs, stopped, attempt + 1);
 	}
 }
