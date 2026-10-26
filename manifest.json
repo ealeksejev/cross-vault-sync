@@ -3,7 +3,7 @@
 	"name": "Cross-Vault Sync",
 	"version": "0.1.3",
 	"minAppVersion": "1.13.4",
-	"description": "Keep notes synchronized across multiple Obsidian vaults using the sync_targets frontmatter property.",
+	"description": "Keep notes synchronized across multiple vaults using the sync_targets frontmatter property.",
 	"author": "Einar Aleksejev",
 	"isDesktopOnly": true
 }

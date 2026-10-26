@@ -1,7 +1,7 @@
 {
 	"name": "cross-vault-sync",
 	"version": "0.1.3",
-	"description": "Keep notes synchronized across multiple Obsidian vaults using the sync_targets frontmatter property.",
+	"description": "Keep notes synchronized across multiple vaults using the sync_targets frontmatter property.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {

@@ -40,7 +40,7 @@ const RETRYABLE_CODES = new Set(['EBUSY', 'EPERM', 'EACCES', 'EAGAIN']);
 const WRITE_RETRIES = 5;
 
 export function errorCode(err: unknown): string | undefined {
-	return err instanceof Error ? (err as NodeJS.ErrnoException).code : undefined;
+	return err instanceof Error ? (err as Error & { code?: string }).code : undefined;
 }
 
 export function errorMessage(err: unknown): string {
