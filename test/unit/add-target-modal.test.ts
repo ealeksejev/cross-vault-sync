@@ -128,9 +128,10 @@ describe('waitForMetadata', () => {
 		app.metadataCache.trigger('changed', a);
 		await waiting;
 		expect(offref).toHaveBeenCalledTimes(1);
-		const started = Date.now();
+		// The monotonic clock, as in sync-errors.test.ts
+		const started = performance.now();
 		await waitForMetadata(app.asOriginalType__(), a, 30);
-		expect(Date.now() - started).toBeGreaterThanOrEqual(25);
+		expect(performance.now() - started).toBeGreaterThanOrEqual(25);
 		expect(offref).toHaveBeenCalledTimes(2);
 	});
 });

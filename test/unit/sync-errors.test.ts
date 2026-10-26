@@ -29,10 +29,11 @@ describe('sync I/O errors', () => {
 		io().hooks.beforeWrite = (p) => {
 			if (isB(p)) throw errno('EBUSY', p);
 		};
-		const started = Date.now();
+		// performance.now(), not Date.now(): the wall clock can jump back while the test waits, as WSL 2 resyncs it
+		const started = performance.now();
 		await pA.engine.syncFile(fA);
 		// 100 + 200 + 400 + 800 + 1600 ms
-		expect(Date.now() - started).toBeGreaterThanOrEqual(3000);
+		expect(performance.now() - started).toBeGreaterThanOrEqual(3000);
 		expect(ctx.count(/EBUSY/)).toBe(1);
 		expect(bodyOf(io().content(B_FULL))).toBe(note('v1'));
 	});
