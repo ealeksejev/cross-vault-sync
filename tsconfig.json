@@ -13,7 +13,9 @@
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
 		"allowSyntheticDefaultImports": true,
-		"lib": ["ES2021", "DOM"]
+		"lib": ["ES2021", "DOM"],
+		// The community directory reviews the source without Node.js types, so the plugin declares the parts it uses
+		"types": []
 	},
 	"include": ["src/**/*.ts"]
 }

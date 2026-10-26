@@ -1,6 +1,15 @@
-import type * as NodePath from 'path';
-
-export type PathModule = Pick<typeof NodePath, 'resolve' | 'relative' | 'dirname' | 'basename' | 'extname' | 'join' | 'isAbsolute' | 'sep'>;
+// The functions of Node's path module that the plugin uses. They are declared here: the community directory
+// reviews the source without Node.js types, which would leave every call untyped.
+export interface PathModule {
+	readonly sep: string;
+	resolve(...paths: string[]): string;
+	relative(from: string, to: string): string;
+	dirname(path: string): string;
+	basename(path: string, suffix?: string): string;
+	extname(path: string): string;
+	join(...paths: string[]): string;
+	isAbsolute(path: string): boolean;
+}
 
 export type PlatformName = 'win32' | 'darwin' | 'linux';
 

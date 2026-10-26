@@ -27,6 +27,8 @@ export default defineConfig(
 			parserOptions: {
 				projectService: {
 					allowDefaultProject: ['eslint.config.mts', 'manifest.json', 'vitest.config.ts', 'wdio.conf.mts'],
+					// These run in Node.js. The tsconfig of src has no Node.js types (see tsconfig.json), the one of the tests has.
+					defaultProject: 'test/tsconfig.json',
 				},
 				tsconfigRootDir: import.meta.dirname,
 				extraFileExtensions: ['.json'],
