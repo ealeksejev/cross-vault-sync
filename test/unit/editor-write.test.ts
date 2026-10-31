@@ -30,6 +30,24 @@ describe('writing into the note open in the active editor', () => {
 		expect(to!.line).toBeLessThan(at.line);
 	});
 
+	// view.save() makes the view's data the editor's text at once. Obsidian takes in a change 10 ms after it, and
+	// shows the new frontmatter in Properties, only while the text differs from that data. Properties then kept
+	// showing the old sync fields, and the next edit in Properties wrote them back: a conflict with every tag
+	// (seen in Obsidian 1.14.5).
+	it('lets Obsidian take in the change after the save, so Properties shows the new sync fields', async () => {
+		const { appA, pA, fA } = await synced(ctx.world);
+		const { view, save } = await openInEditor(appA, fA);
+		const taken = vi.fn();
+		appA.workspace.on('quick-preview', taken);
+		editOnDisk(io(), B_FULL, note('B edit'));
+		await pA.engine.syncFile(fA);
+		expect(save).toHaveBeenCalledTimes(1);
+		await vi.waitFor(() => expect(taken).toHaveBeenCalledTimes(1));
+		expect(taken).toHaveBeenCalledWith(expect.anything(), view.editor.getValue());
+		expect(view.data).toBe(view.editor.getValue());
+		expect(await read(appA, fA)).toBe(view.editor.getValue());
+	});
+
 	it('replaces only the changed parts also when the other copy has \\r\\n line breaks', async () => {
 		const { appA, pA, fA } = await synced(ctx.world);
 		const { view } = await openInEditor(appA, fA);

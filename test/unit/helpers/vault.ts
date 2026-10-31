@@ -35,16 +35,32 @@ export interface OpenNote {
 }
 
 // Opens the note in the active editor. The mock editor starts empty and its save() writes nothing,
-// so both are made to behave like Obsidian's.
+// so both are made to behave like Obsidian's. Obsidian also takes in a change in the editor 10 ms later: while
+// the text differs from the view's data, the data becomes the text, Properties shows its frontmatter and
+// 'quick-preview' fires. A save makes the data the saved text at once (MarkdownView.onInternalDataChange and
+// TextFileView.save in Obsidian 1.14.5). There the data is a field of its own. The mock reads it through the
+// editor, so it gets its own field here.
 export async function openInEditor(app: App, file: TFileOriginal, mode: 'source' | 'preview' = 'source'): Promise<OpenNote> {
 	const leaf = app.workspace.getLeaf(true);
 	await leaf.openFile(TFile.fromOriginalType2__(file));
 	const view = leaf.view;
 	if (!(view instanceof MarkdownView)) throw new Error('not a markdown view');
 	view.editor.setValue(await read(app, file));
+	Object.defineProperty(view, 'data', { value: view.editor.getValue(), writable: true, configurable: true });
+	const replaceRange = view.editor.replaceRange.bind(view.editor);
+	vi.spyOn(view.editor, 'replaceRange').mockImplementation((...args: Parameters<typeof replaceRange>) => {
+		replaceRange(...args);
+		window.setTimeout(() => {
+			const text = view.editor.getValue();
+			if (view.data === text) return;
+			view.data = text;
+			app.workspace.trigger('quick-preview', TFile.fromOriginalType2__(file), text);
+		}, 10);
+	});
 	vi.spyOn(view, 'getMode').mockReturnValue(mode);
 	const save = vi.spyOn(view, 'save').mockImplementation(async () => {
-		await edit(app, file, view.editor.getValue());
+		view.data = view.editor.getValue();
+		await edit(app, file, view.data);
 	});
 	app.workspace.setActiveLeaf(leaf);
 	return { view: view.asOriginalType7__(), save };

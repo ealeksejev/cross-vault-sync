@@ -60,7 +60,14 @@ export async function writeLocal(host: SyncHost, file: TFile, expectedHash: stri
 		for (const change of changes(current, content.replace(/\r\n/g, '\n')).reverse()) {
 			editor.replaceRange(change.text, editor.offsetToPos(change.from), editor.offsetToPos(change.to));
 		}
-		await view.save();
+		// save() makes the view's data the editor's text at once. Obsidian takes in the change 10 ms later, and shows
+		// the new frontmatter in Properties, only while the text differs from that data, so the data stays as it was
+		// until then (MarkdownView.onInternalDataChange in Obsidian 1.14.5). Otherwise Properties kept the old sync
+		// fields, and the next edit in Properties wrote them back: a conflict with every tag.
+		const data = view.data;
+		const saved = view.save();
+		view.data = data;
+		await saved;
 		return true;
 	}
 	// vault.process re-reads the note atomically
