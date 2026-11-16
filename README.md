@@ -31,6 +31,44 @@ sync_targets:
 
 After the first sync the plugin replaces a folder entry with the exact file, here `Vault B/Notes/topic`. From then on the copies can be renamed independently: each vault keeps only its own entry current.
 
+## Folder sync
+
+A note named `SYNC.md` in a folder is the manifest of that folder: the folder entries in its `sync_targets` mirror the whole folder tree, note by note, into those folders:
+
+```yaml
+---
+sync_targets:
+  - Vault A/Projects/SYNC
+  - Vault B/Notes/
+---
+```
+
+To make the manifest in Obsidian:
+
+1. In the file explorer, right-click the folder and choose **New note**. Name it `SYNC`
+2. Run the **Add sync target to active note** command
+3. In the **Target** field, enter the vault name and folder with a trailing slash: `Vault B/Notes/`
+4. Click **Add and sync**
+
+The vault name must be known on this computer: a vault where the plugin was ever opened, or a folder added in the settings.
+
+The plugin writes the mirror entries into the `sync_targets` of every note of the folder, recursively, so each note carries its own sync state and no state lives outside the notes:
+
+```yaml
+---
+sync_targets:
+  - Vault A/Projects/deep/beta
+  - Vault B/Notes/deep/beta
+---
+```
+
+- A note created in the folder gets its entries and syncs at once. A note moved into the folder gains them, and a note moved out loses its mirror entries
+- The mirror runs both ways: the target folders are watched, subfolders included, and a `.md` file that another program creates there becomes a note of the folder, with the folder's entries, and is a sync pair from then on. A note deleted from the folder is recreated from its target copy the next time the target changes or Obsidian starts. Adopting a file that has no frontmatter is no conflict: it leaves no backup
+- Adding a folder entry to the manifest extends every note of the folder. Entries are only added, never removed: removing a target from the manifest leaves the entries the notes already have. To stop mirroring a note, move it out of the folder
+- A sync of the manifest keeps its folder entries unpinned: pinned, they would stop mirroring the folder. A folder entry in any other note is pinned as usual
+- The mirror copy of a manifest in a target folder carries the original's list, so it is treated as a copy, like any copy, and manages no notes
+- Missing target folders are never created, as with note targets
+
 ## Sync state in the note
 
 Every copy carries its own sync state in its frontmatter, like the header of a network packet. The plugin keeps no sync state anywhere else, so it works the same with the copies in one vault, in several vaults, or on several computers. Every sync that writes a copy writes three fields into it:
@@ -53,6 +91,7 @@ A copy whose content no longer matches its own `sync_hash` was edited after its 
 | --- | --- |
 | one edited copy, or several with the same content | it wins quietly |
 | copies edited in different ways | a conflict: the newest wins, the others are kept as `<name>.sync-conflict-<hash>.md` |
+| a losing version's content is contained in the winning one | no conflict: the containing version wins quietly, nothing is kept |
 | a copy edited from an older version than the newest sync | a conflict with that sync |
 | no edited copy, different versions | the highest version wins: the others missed a sync |
 
@@ -90,7 +129,7 @@ The same vault can be in a different folder on each computer, for example under 
 
 ## Files outside the vault
 
-The plugin reads and writes the files listed in `sync_targets`, also outside the vault, and writes conflict backups next to them. It watches the folders of the active note's targets for changes: the note you are working in. A note in another tab or split is not watched. Its copies are checked when you switch to it. It needs this to keep the copies in other vaults identical. It does not use the network. Its own data in the vault holds the settings only.
+The plugin reads and writes the files listed in `sync_targets`, also outside the vault, and writes conflict backups next to them. It watches the folders of the active note's targets for changes: the note you are working in. A note in another tab or split is not watched. Its copies are checked when you switch to it. It also watches the target folders of every `SYNC.md` manifest, subfolders included, so a file that another program creates there becomes a note of the folder. It needs this to keep the copies in other vaults identical. It does not use the network. Its own data in the vault holds the settings only.
 
 ## Installation
 

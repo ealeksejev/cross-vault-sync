@@ -36,6 +36,8 @@ describe('Node services', () => {
 		const stat = await services.io.stat(file);
 		expect(stat.size).toBe(11);
 		expect(stat.isDirectory()).toBe(false);
+		expect(await services.io.readdir(dir)).toEqual(['note.md']);
+		await expect(services.io.readdir(path.join(dir, 'missing'))).rejects.toMatchObject({ code: 'ENOENT' });
 		// A write that keeps the modification time of the content it had
 		await services.io.writeFile(file, 'hello again', 'w', 1_700_000_000_000);
 		expect((await services.io.stat(file)).mtimeMs).toBe(1_700_000_000_000);

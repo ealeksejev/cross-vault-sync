@@ -6,6 +6,10 @@ export interface MountedAdapter {
 	statSync__(normalizedPath: string): { type: 'file' | 'folder'; mtime: number; size: number } | null;
 	readSync__(normalizedPath: string): string;
 	writeSync__(normalizedPath: string, data: string, options?: { mtime?: number }): void;
+	// Creates a folder and any missing parents; mock-only, as listAll__ is
+	mkdirSync__(normalizedPath: string): void;
+	// Every path in the filesystem, vault-relative; mock-only, as listAll__ is
+	listAll__(): { files: string[]; folders: string[] };
 }
 
 export interface FakeWatcher extends FileWatcher {
@@ -48,6 +52,8 @@ export class FakeIo implements FileIo {
 	clock = Date.now() + 1_000_000;
 	private readonly files = new Map<string, Entry>();
 	private readonly dirs = new Set<string>();
+	// key -> the path's original case, so readdir on a case-insensitive platform reports the real names
+	private readonly originals = new Map<string, string>();
 	private readonly mounts: { key: string; base: string; adapter: MountedAdapter; onChange?: (rel: string) => void }[] = [];
 
 	constructor(readonly path: PlatformPath, private readonly caseInsensitive: boolean) {}
@@ -90,7 +96,28 @@ export class FakeIo implements FileIo {
 	addDir(dir: string): void {
 		let current = this.path.resolve(dir);
 		for (;;) {
-			this.dirs.add(this.key(current));
+			const key = this.key(current);
+			if (!this.dirs.has(key)) {
+				this.dirs.add(key);
+				this.originals.set(key, current);
+				// A new directory is visible to the watchers of its parent, as on a real file system
+				const parent = this.path.dirname(current);
+				if (parent !== current) {
+					for (const watcher of this.watchers) {
+						if (!watcher.closed && this.key(watcher.dir) === this.key(parent)) {
+							watcher.listener('create', this.path.basename(current));
+						}
+					}
+				}
+			}
+			// A vault folder another program makes: Obsidian re-indexes and sees it, too
+			const mount = this.mounted(current);
+			if (mount && mount.rel !== '' && mount.adapter.statSync__(mount.rel)?.type !== 'folder') {
+				mount.adapter.mkdirSync__(mount.rel);
+				const { onChange, rel } = mount;
+				if (onChange && this.events === 'during') queueMicrotask(() => onChange(rel));
+				else if (onChange) window.setTimeout(() => onChange(rel), 0);
+			}
 			const parent = this.path.dirname(current);
 			if (parent === current) return;
 			current = parent;
@@ -124,6 +151,7 @@ export class FakeIo implements FileIo {
 			else if (onChange) window.setTimeout(() => onChange(rel), 0);
 		} else {
 			this.files.set(this.key(resolved), { mtimeMs: mtime, content });
+			this.originals.set(this.key(resolved), resolved);
 			this.writeLog.push(resolved);
 		}
 		for (const watcher of this.watchers) {
@@ -182,6 +210,33 @@ export class FakeIo implements FileIo {
 		this.hooks.beforeWrite?.(this.path.resolve(fullPath), flag);
 		if (flag === 'wx' && this.exists(fullPath)) throw errno('EEXIST', fullPath);
 		this.put(fullPath, content, mtimeMs);
+	}
+
+	async readdir(fullPath: string): Promise<string[]> {
+		const resolved = this.path.resolve(fullPath);
+		const mount = this.mounted(resolved);
+		if (mount) {
+			const stat = mount.rel === '' ? ({ type: 'folder' } as const) : mount.adapter.statSync__(mount.rel);
+			if (stat === null) throw errno('ENOENT', resolved);
+			if (stat.type !== 'folder') throw errno('ENOTDIR', resolved);
+			const prefix = mount.rel === '' ? '' : `${mount.rel}/`;
+			const names = new Set<string>();
+			const { files, folders } = mount.adapter.listAll__();
+			for (const p of [...files, ...folders]) {
+				if (!p.startsWith(prefix) || p.slice(prefix.length).includes('/')) continue;
+				names.add(p.slice(prefix.length));
+			}
+			return [...names].sort();
+		}
+		if (!this.isDir(resolved)) throw errno(this.ancestorIsFile(resolved) ? 'ENOTDIR' : 'ENOENT', resolved);
+		const parent = this.key(resolved);
+		const names = new Set<string>();
+		const add = (key: string): void => {
+			if (this.path.dirname(key) === parent) names.add(this.path.basename(this.originals.get(key) ?? key));
+		};
+		for (const key of this.files.keys()) add(key);
+		for (const key of this.dirs) if (key !== parent) add(key);
+		return [...names].sort();
 	}
 
 	watch(dir: string, listener: (eventType: string, filename: string | null) => void): FakeWatcher {

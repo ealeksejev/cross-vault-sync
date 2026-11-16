@@ -51,6 +51,13 @@ export function withoutHeader(content: string): string {
 	return [...kept, ...lines.slice(end)].join('\n');
 }
 
+// The note's text without its frontmatter block, or the whole note when it has no frontmatter. Unlike
+// withoutHeader, every frontmatter field is dropped: a content comparison that ignores all metadata
+export function withoutFrontmatter(content: string): string {
+	const { lines, end } = split(content);
+	return end === null ? lines.join('\n') : lines.slice(end + 1).join('\n');
+}
+
 // A YAML scalar as written by this plugin ("..." or plain) or by Obsidian ('...' or plain)
 function scalar(raw: string): string {
 	const text = raw.trim();

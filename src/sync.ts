@@ -3,8 +3,9 @@ import { backupConflict, isConflictBackup } from './conflict';
 import { CopyFiles } from './copies';
 import { decide, type Candidate } from './decide';
 import { noteEntry, parseEntry, vaultProblemMessage } from './entries';
+import { isManifestBasename } from './folder-sync';
 import { ErrorReporter, LoopGuard } from './guards';
-import { readHeader, withoutHeader, writeHeader } from './header';
+import { readHeader, withoutFrontmatter, withoutHeader, writeHeader } from './header';
 import type { SyncHost } from './host';
 import { errorCode, statOrNull, type ExistingCopy, type MissingCopy } from './io';
 import { hasUnsavedChanges, writeLocal } from './local-write';
@@ -174,9 +175,13 @@ export class SyncEngine {
 			if (this.loopGuard.record(file.path, file.name, winner.isLocal ? 'push' : 'pull')) return;
 		}
 
-		if (losers.length > 0) {
+		// A losing version that the winning content contains in full, such as the plain file a pulled note was
+		// mirrored from, is no divergence: nothing is lost, so it is neither backed up nor reported
+		const winnerBody = withoutFrontmatter(winner.content);
+		const lost = losers.filter((loser) => winnerBody !== loser.content);
+		if (lost.length > 0) {
 			if (host.settings.createConflictBackup) {
-				for (const loser of losers) {
+				for (const loser of lost) {
 					if (!(await backupConflict(host, this.files, loser.fullPath, loser.content))) {
 						new Notice('Cross-Vault Sync: Could not save a conflict backup, so nothing was overwritten.');
 						return;
@@ -308,9 +313,11 @@ export class SyncEngine {
 
 	// A folder entry only says where the copy goes the first time. Once the copy exists, the entry names the
 	// exact file, so the copies can be renamed independently later. The change reaches the copies with the
-	// sync that the edit starts.
+	// sync that the edit starts. The manifest's folder entries are never pinned: pinned, they would stop
+	// mirroring the folder.
 	private async pinFolderEntries(file: TFile, present: Set<string>): Promise<void> {
 		const { host } = this;
+		if (isManifestBasename(file.basename, host.paths)) return;
 		const frontmatterKey = host.settings.frontmatterKey;
 		try {
 			await host.app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {

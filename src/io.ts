@@ -16,6 +16,8 @@ export interface FileIo {
 	readFile(fullPath: string): Promise<string>;
 	// 'wx' fails with EEXIST instead of overwriting. mtimeMs, when given, becomes the modification time.
 	writeFile(fullPath: string, content: string, flag: 'w' | 'wx', mtimeMs?: number): Promise<void>;
+	// The names of the entries directly under a directory. Throws when the directory is missing.
+	readdir(fullPath: string): Promise<string[]>;
 	watch(dir: string, listener: (eventType: string, filename: string | null) => void): FileWatcher;
 }
 

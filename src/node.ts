@@ -16,6 +16,7 @@ interface NodeFs {
 		readFile(path: string, encoding: 'utf8'): Promise<string>;
 		writeFile(path: string, data: string, options: { encoding: 'utf8'; flag: 'w' | 'wx' }): Promise<void>;
 		utimes(path: string, atime: Date, mtime: Date): Promise<void>;
+		readdir(path: string): Promise<string[]>;
 	};
 	watch(dir: string, listener: (eventType: string, filename: string | null) => void): FileWatcher;
 }
@@ -45,6 +46,7 @@ export function loadNodeServices(): NodeServices {
 				await fs.promises.writeFile(fullPath, content, { encoding: 'utf8', flag });
 				if (mtimeMs !== undefined) await fs.promises.utimes(fullPath, new Date(), new Date(mtimeMs));
 			},
+			readdir: (fullPath) => fs.promises.readdir(fullPath),
 			watch: (dir, listener) => fs.watch(dir, (eventType, filename) => listener(eventType, filename)),
 		},
 		hash: (content) => crypto.createHash('sha256').update(content, 'utf8').digest('hex'),

@@ -1,5 +1,6 @@
 import { FileSystemAdapter, Notice, Platform, Plugin, TFile } from 'obsidian';
 import { EntryResolver } from './entries';
+import { FolderSync } from './folder-sync';
 import type { SyncHost } from './host';
 import type { FileIo, Hash } from './io';
 import { loadNodeServices } from './node';
@@ -20,6 +21,7 @@ export default class CrossVaultSyncPlugin extends Plugin implements SyncHost {
 	io!: FileIo;
 	hash!: Hash;
 	engine!: SyncEngine;
+	folderSync!: FolderSync;
 	watchers!: TargetWatchers;
 	ownPath!: OwnPath;
 	statusBarEl!: HTMLElement;
@@ -45,8 +47,11 @@ export default class CrossVaultSyncPlugin extends Plugin implements SyncHost {
 		this.entries = new EntryResolver(this.paths, this.folders, ownVault);
 
 		this.engine = new SyncEngine(this);
+		this.folderSync = new FolderSync(this, this.engine);
 		this.watchers = new TargetWatchers(this, this.engine);
 		this.ownPath = new OwnPath(this, this.engine);
+		// The notes of a synced folder carry the folder's entries; the apply writes only what is missing
+		void this.folderSync.initialApply();
 
 		this.statusBarEl = this.addStatusBarItem();
 		this.statusBarEl.addClass('mod-clickable');
@@ -68,6 +73,7 @@ export default class CrossVaultSyncPlugin extends Plugin implements SyncHost {
 		if (!this.ready) return;
 		this.engine.unload();
 		this.watchers.close();
+		this.folderSync.close();
 	}
 
 	private registerCommands(): void {
@@ -105,14 +111,24 @@ export default class CrossVaultSyncPlugin extends Plugin implements SyncHost {
 	private registerEvents(): void {
 		const isNote = (file: unknown): file is TFile => file instanceof TFile && file.extension === 'md';
 
+		this.registerEvent(this.app.vault.on('create', (file) => {
+			if (isNote(file)) void this.folderSync.onCreate(file);
+		}));
 		this.registerEvent(this.app.vault.on('modify', (file) => {
 			if (this.settings.autoSync && isNote(file)) this.engine.schedule(file);
 		}));
 		this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
-			if (isNote(file)) void this.ownPath.handleRename(file, oldPath);
+			if (!isNote(file)) return;
+			void (async () => {
+				// The own entry first: the mirror entries merge into the list it leaves behind
+				await this.ownPath.handleRename(file, oldPath);
+				await this.folderSync.onRename(file, oldPath);
+			})();
 		}));
-		// Pick up sync_targets edits on the active note (status bar count, watched targets, own path)
+		// Pick up sync_targets edits on the active note (status bar count, watched targets, own path) and
+		// target list edits on a manifest note, active or not
 		this.registerEvent(this.app.metadataCache.on('changed', (file) => {
+			if (isNote(file) && this.folderSync.isManifest(file)) void this.folderSync.onManifestChanged(file);
 			if (file !== this.app.workspace.getActiveFile()) return;
 			this.updateStatusBar(file);
 			this.watchers.update(file, false);

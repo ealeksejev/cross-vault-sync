@@ -1,6 +1,6 @@
 import * as nodePath from 'path';
 import { describe, expect, it, vi } from 'vitest';
-import { readHeader, withoutHeader } from '../../src/header';
+import { readHeader, withoutFrontmatter, withoutHeader } from '../../src/header';
 import { errno } from './helpers/fake-io';
 import { change, edit, frontmatter, read, trash } from './helpers/vault';
 import {
@@ -108,6 +108,17 @@ describe('sync decisions', () => {
 		expect(ctx.count(/edited in more than one place/)).toBe(1);
 		await pB.engine.syncFile(fB);
 		expect(writtenBackups()).toHaveLength(1);
+	});
+
+	it('a conflict whose winning version has no frontmatter still backs up the losing one', async () => {
+		const { appA, pA, fA } = await synced(ctx.world);
+		await change(appA, fA, note('edit A'));
+		io().put(B_FULL, 'edit B\n', io().clock + 10_000);
+		await pA.engine.syncFile(fA);
+		// The plain file wins and both copies take its text, without the frontmatter they had
+		expect(withoutFrontmatter(await read(appA, fA))).toBe('edit B\n');
+		expect(withoutFrontmatter(io().content(B_FULL) ?? '')).toBe('edit B\n');
+		expect(writtenBackups().map((p) => bodyOf(io().content(p)))).toEqual([note('edit A')]);
 	});
 
 	it('a conflict with backups and notices off still keeps the newest edit', async () => {
